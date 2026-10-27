@@ -17,33 +17,33 @@ class ChatHandler:
         self.redis_helper = RedisHelper()
         self.connection_handler = connection_handler
         
-        # Start background listener
-        self.socketio.start_background_task(self._start_redis_listener)
-
-    def _start_redis_listener(self):
-        """Listens to Redis Pub/Sub and broadcasts to rooms"""
-        pubsub = self.redis_helper.client.pubsub()
-        channel_pattern = f"{settings.REDIS_AUCTION_PREFIX}:*:chat" 
-        pubsub.psubscribe(channel_pattern)
+       
         
-        logger.info(f"Redis Listener started on pattern: {channel_pattern}")
 
-        for message in pubsub.listen():
-            if message['type'] == 'pmessage':
-                try:
-                    data = json.loads(message['data'])
-                    auction_id = data.get("auction_id")
-                    sender_sid = data.get("sid") # <--- Get the sender's ID
+    # def _start_redis_listener(self):
+    #     """Listens to Redis Pub/Sub and broadcasts to rooms"""
+    #     pubsub = self.redis_helper.client.pubsub()
+    #     channel_pattern = f"{settings.REDIS_AUCTION_PREFIX}:*:chat" 
+    #     pubsub.psubscribe(channel_pattern)
+        
+    #     logger.info(f"Redis Listener started on pattern: {channel_pattern}")
 
-                    # 📢 Broadcast. skip_sid prevents the "Echo" (double message)
-                    self.socketio.emit(
-                        "chat_message", 
-                        data, 
-                        room=auction_id, 
-                        skip_sid=sender_sid  # <--- FIX: Skip the sender
-                    )
-                except Exception as e:
-                    logger.error(f"Listener broadcast error: {e}")
+    #     for message in pubsub.listen():
+    #         if message['type'] == 'pmessage':
+    #             try:
+    #                 data = json.loads(message['data'])
+    #                 auction_id = data.get("auction_id")
+    #                 sender_sid = data.get("sid") # <--- Get the sender's ID
+
+    #                 # 📢 Broadcast. skip_sid prevents the "Echo" (double message)
+    #                 self.socketio.emit(
+    #                     "chat_message", 
+    #                     data, 
+    #                     room=auction_id, 
+    #                     skip_sid=sender_sid  # <--- FIX: Skip the sender
+    #                 )
+    #             except Exception as e:
+    #                 logger.error(f"Listener broadcast error: {e}")
 
     def on_chat_message(self, connection_id: str, data: dict):
         """Handle incoming chat message ⚡"""
@@ -52,6 +52,9 @@ class ChatHandler:
             message = data.get("message", "").strip()
 
             if not auction_id or not message:
+                if len(message) > 500:
+                    emit("error", {"message": "Message too long (max 500 characters)"})
+                    return
                 return
 
             # --- Identity Resolution ---
@@ -70,7 +73,7 @@ class ChatHandler:
 
             chat_data = {
                 "message_id": str(uuid.uuid4()),
-                "sid": connection_id,  # <--- FIX: Include SID to prevent echo
+                # "sid": connection_id,  # <--- FIX: Include SID to prevent echo
                 "type": "chat",
                 "auction_id": str(auction_id),
                 "user_id": str(user_id),
