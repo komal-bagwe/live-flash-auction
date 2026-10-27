@@ -34,6 +34,8 @@ This project implements a live flash auction system with real-time bidding, coun
 - **Cognito**: User authentication and authorization
 - **ALB**: Application Load Balancer for service exposure
 
+<img width="574" height="376" alt="image" src="https://github.com/user-attachments/assets/2084e71e-3f74-43d9-8d72-c992589d429b" />
+
 ## 🚀 Quick Start
 
 ### Prerequisites
