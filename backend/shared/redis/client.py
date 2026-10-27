@@ -141,11 +141,14 @@ class RedisHelper:
         self.client = RedisClient.get_client()
 
     # --- ADDED: Chat Methods ---
-    def save_chat_message(self, auction_id: str, message_data: dict, max_history: int = 100):
-        """Save chat message to a Redis list and trim to maintain history limit"""
+    def save_chat_message(self, auction_id: str, message_data: dict, max_history: int = 100, ttl_seconds: int = 86400):
+        """Save chat message, trim history, and refresh TTL in one atomic round trip"""
         key = RedisKeys.chat_history(auction_id)
-        self.client.rpush(key, json.dumps(message_data))
-        self.client.ltrim(key, -max_history, -1)
+        pipe = self.client.pipeline(transaction=True)
+        pipe.rpush(key, json.dumps(message_data))
+        pipe.ltrim(key, -max_history, -1)
+        pipe.expire(key, ttl_seconds)
+        pipe.execute()
 
     def get_chat_history(self, auction_id: str, limit: int = 50):
         """Retrieves and parses chat history from the Redis List"""
